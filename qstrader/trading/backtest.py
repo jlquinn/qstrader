@@ -13,6 +13,7 @@ from qstrader.system.qts import QuantTradingSystem
 from qstrader.system.rebalance.buy_and_hold import BuyAndHoldRebalance
 from qstrader.system.rebalance.daily import DailyRebalance
 from qstrader.system.rebalance.end_of_month import EndOfMonthRebalance
+from qstrader.system.rebalance.monthly import MonthlyRebalance
 from qstrader.system.rebalance.weekly import WeeklyRebalance
 from qstrader.trading.trading_session import TradingSession
 from qstrader import settings
@@ -113,6 +114,11 @@ class BacktestTradingSession(TradingSession):
                     "keyword argument to the instantiation of "
                     "BacktestTradingSession, e.g. with 'WED'."
                 )
+        if rebalance == 'monthly':
+            if 'rebalance_monthday' in kwargs:
+                self.rebalance_monthday = kwargs['rebalance_monthday']-1
+            else:
+                self.rebalance_monthday = 0
         self.rebalance_schedule = self._create_rebalance_event_times()
 
         self.qts = self._create_quant_trading_system(**kwargs)
@@ -249,6 +255,10 @@ class BacktestTradingSession(TradingSession):
         elif self.rebalance == 'weekly':
             rebalancer = WeeklyRebalance(
                 self.start_dt, self.end_dt, self.rebalance_weekday
+            )
+        elif self.rebalance == 'monthly':
+            rebalancer = MonthlyRebalance(
+                self.start_dt, self.end_dt, self.rebalance_monthday
             )
         elif self.rebalance == 'end_of_month':
             rebalancer = EndOfMonthRebalance(self.start_dt, self.end_dt)
