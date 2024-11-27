@@ -172,7 +172,7 @@ if __name__ == "__main__":
     # To avoid loading all CSV files in the directory, set the
     # data source to load only those provided symbols
     csv_dir = os.environ.get('QSTRADER_CSV_DATA_DIR', '.')
-    strategy_data_source = CSVDailyBarDataSource(csv_dir, Equity, csv_symbols=strategy_symbols)
+    strategy_data_source = CSVDailyBarDataSource(csv_dir, Equity, csv_symbols=strategy_symbols, adjust_prices=False)
     strategy_data_handler = BacktestDataHandler(strategy_universe, data_sources=[strategy_data_source])
 
     # Generate the signals (in this case holding-period return based
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     benchmark_symbols = ['SPY']
     benchmark_assets = ['EQ:SPY']
     benchmark_universe = StaticUniverse(benchmark_assets)
-    benchmark_data_source = CSVDailyBarDataSource(csv_dir, Equity, csv_symbols=benchmark_symbols)
+    benchmark_data_source = CSVDailyBarDataSource(csv_dir, Equity, csv_symbols=benchmark_symbols, adjust_prices=False)
     benchmark_data_handler = BacktestDataHandler(benchmark_universe, data_sources=[benchmark_data_source])
 
     # Construct a benchmark Alpha Model that provides
