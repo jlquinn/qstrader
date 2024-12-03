@@ -10,10 +10,13 @@ from qstrader.alpha_model.fixed_signals import FixedSignalsAlphaModel
 from qstrader.asset.equity import Equity
 from qstrader.asset.universe.dynamic import DynamicUniverse
 from qstrader.asset.universe.static import StaticUniverse
+from qstrader.broker.fee_model.percent_fee_model import PercentFeeModel
+from qstrader.broker.fee_model.zero_fee_model import ZeroFeeModel
 from qstrader.signals.momentum import MomentumSignal
 from qstrader.signals.signals_collection import SignalsCollection
 from qstrader.data.backtest_data_handler import BacktestDataHandler
 from qstrader.data.daily_bar_csv import CSVDailyBarDataSource
+from qstrader.statistics.json_statistics import JSONStatistics
 from qstrader.statistics.tearsheet import TearsheetStatistics
 from qstrader.trading.backtest import BacktestTradingSession
 
@@ -250,6 +253,10 @@ if __name__ == "__main__":
     burn_in_dt = pd.Timestamp('1999-12-22 14:30:00', tz=pytz.UTC)
     end_dt = pd.Timestamp('2020-12-31 23:59:00', tz=pytz.UTC)
 
+    #start_dt = pd.Timestamp('2019-12-22 14:30:00', tz=pytz.UTC)
+    #burn_in_dt = pd.Timestamp('2020-12-22 14:30:00', tz=pytz.UTC)
+    #end_dt = pd.Timestamp('2024-10-31 23:59:00', tz=pytz.UTC)
+    
     # Model parameters
     gain6m_lookback = 126  # Six months worth of business days
     gain5d_lookback = 5  # 5 business days
@@ -319,9 +326,13 @@ if __name__ == "__main__":
                                  'gain5d': gain5d,
                                  }, strategy_data_handler)
 
+    ## Construct the transaction cost modelling - fees/slippage
+    #fee_model = PercentFeeModel(tax_pct=35.0 / 100.0)
+
     # Generate the alpha model instance for the top-N momentum alpha model
     strategy_alpha_model = DBTransactionAlphaModel(
-        signals, gain6m_lookback, mom_top_n, strategy_universe, strategy_data_handler
+        signals, gain6m_lookback, mom_top_n, strategy_universe,
+        strategy_data_handler
     )
 
     # Construct the strategy backtest and run it
@@ -341,6 +352,7 @@ if __name__ == "__main__":
         cash_buffer_percentage=0.01,
         burn_in_dt=burn_in_dt,
         data_handler=strategy_data_handler,
+        #fee_model=fee_model,
         **kwargs
     )
     strategy_backtest.run()
@@ -354,6 +366,10 @@ if __name__ == "__main__":
     benchmark_data_source = CSVDailyBarDataSource(csv_dir, Equity, csv_symbols=benchmark_symbols, adjust_prices=False)
     benchmark_data_handler = BacktestDataHandler(benchmark_universe, data_sources=[benchmark_data_source])
 
+    ## Construct the transaction cost modelling - fees/slippage
+    ## buy and hold is long-term cap gains
+    #fee_model = PercentFeeModel(tax_pct=15.0 / 100.0)
+    
     # Construct a benchmark Alpha Model that provides
     # 100% static allocation to the SPY ETF, with no rebalance
     benchmark_alpha_model = FixedSignalsAlphaModel({'EQ:SPY': 1.0})
@@ -365,14 +381,27 @@ if __name__ == "__main__":
         rebalance='buy_and_hold',
         long_only=True,
         cash_buffer_percentage=0.01,
-        data_handler=benchmark_data_handler
+        data_handler=benchmark_data_handler,
+        #fee_model=fee_model
     )
     benchmark_backtest.run()
 
     # Performance Output
+    #title='US Sector Momentum - Top 3 Sectors'
+    title = f"DBTrx n={mom_top_n} p={args.rebalance} d={args.rebalance_day}"
+    ofile = f"dbtrx.{args.rebalance}.{args.rebalance}.{args.rebalance_day}.n{mom_top_n}.json"
+    jsonstats = JSONStatistics(
+        equity_curve=strategy_backtest.get_equity_curve(),
+        target_allocations=strategy_backtest.get_target_allocations(),
+        benchmark_curve=benchmark_backtest.get_equity_curve(),
+        strategy_name=title,
+        output_filename=ofile
+    )
+    jsonstats.to_file()
+
     tearsheet = TearsheetStatistics(
         strategy_equity=strategy_backtest.get_equity_curve(),
         benchmark_equity=benchmark_backtest.get_equity_curve(),
-        title='US Sector Momentum - Top 3 Sectors'
+        title=title
     )
     tearsheet.plot_results()
