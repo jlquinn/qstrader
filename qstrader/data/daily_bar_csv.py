@@ -215,11 +215,15 @@ class CSVDailyBarDataSource(object):
             The bid price.
         """
         bid_ask_df = self.asset_bid_ask_frames[asset]
-        bid_series = bid_ask_df.iloc[bid_ask_df.index.get_indexer([dt], method='pad')]['Bid']
-        try:
-            bid = bid_series.iloc[0]
-        except KeyError:  # Before start date
-            return np.nan
+        # Is it faster to grab the column and then index w asof?
+        bid_df = bid_ask_df['Bid']
+        bid = bid_df.asof(dt)
+
+        #bid_series = bid_ask_df.iloc[bid_ask_df.index.get_indexer([dt], method='pad')]['Bid']
+        #try:
+        #    bid = bid_series.iloc[0]
+        #except KeyError:  # Before start date
+        #    return np.nan
         return bid
 
     @functools.lru_cache(maxsize=1024 * 1024)
