@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 import operator
 import os
+import re
 
 import pandas as pd
 import pytz
@@ -138,6 +139,8 @@ class DBTransactionAlphaModel(AlphaModel):
             ) for asset in assets5d
         }
 
+        # I want to filter anything with tiny volumes
+
         # These are ordered lists of symbols
         heat = [
             asset[0] for asset in sorted(
@@ -249,13 +252,13 @@ class DBTransactionAlphaModel(AlphaModel):
 
 if __name__ == "__main__":
     # Duration of the backtest
-    start_dt = pd.Timestamp('1998-12-22 14:30:00', tz=pytz.UTC)
-    burn_in_dt = pd.Timestamp('1999-12-22 14:30:00', tz=pytz.UTC)
-    end_dt = pd.Timestamp('2020-12-31 23:59:00', tz=pytz.UTC)
+    #start_dt = pd.Timestamp('1998-12-22 14:30:00', tz=pytz.UTC)
+    #burn_in_dt = pd.Timestamp('1999-12-22 14:30:00', tz=pytz.UTC)
+    #end_dt = pd.Timestamp('2020-12-31 23:59:00', tz=pytz.UTC)
 
-    #start_dt = pd.Timestamp('2019-12-22 14:30:00', tz=pytz.UTC)
-    #burn_in_dt = pd.Timestamp('2020-12-22 14:30:00', tz=pytz.UTC)
-    #end_dt = pd.Timestamp('2024-10-31 23:59:00', tz=pytz.UTC)
+    start_dt = pd.Timestamp('2019-12-22 14:30:00', tz=pytz.UTC)
+    burn_in_dt = pd.Timestamp('2020-12-22 14:30:00', tz=pytz.UTC)
+    end_dt = pd.Timestamp('2024-10-31 23:59:00', tz=pytz.UTC)
     
     # Model parameters
     gain6m_lookback = 126  # Six months worth of business days
@@ -268,12 +271,35 @@ if __name__ == "__main__":
     parser.add_argument("-C", "--chill-window", default=gain5d_lookback, help="chill window")
     parser.add_argument("-n", "--topn", type=int, default=mom_top_n, help="top N to keep")
     parser.add_argument("-s", "--start-date", type=str,
-                        default="1999-01-01",
-                        help="First date to pull (default 1999-01-01)")
+                        default="1998-12-22",
+                        help="First date to process (default 1998-12-22)")
+    parser.add_argument("-b", "--burn-in", type=str,
+                        default="1y",
+                        help="Timespan to use as burn-in")
+    parser.add_argument("-e", "--end-date", type=str,
+                        default="2020-12-31",
+                        help="Last date to process (default 2020-12-31)")
     parser.add_argument("-r", "--rebalance", default="weekly", help="rebalance strategy")
     parser.add_argument("-d", "--rebalance-day", default="MON",
                         help="rebalance day (depends on strategy")
     args = parser.parse_args()
+
+    start_dt = pd.Timestamp(f'{args.start_date} 14:30:00', tz=pytz.UTC)
+    end_dt = pd.Timestamp(f'{args.end_date} 23:59:00', tz=pytz.UTC)
+
+    # parse burn-in
+    burn_in_dt = start_dt
+    m = re.search("(\\d+)y", args.burn_in)
+    if m is not None:
+        burn_in_dt = burn_in_dt.replace(year=burn_in_dt.year + int(m.group(1)))
+    m = re.search("(\\d+)m", args.burn_in)
+    if m is not None:
+        burn_in_dt = burn_in_dt.replace(month=burn_in_dt.month + int(m.group(1)))
+    m = re.search("(\\d+)d", args.burn_in)
+    if m is not None:
+        burn_in_dt = burn_in_dt.replace(day=burn_in_dt.day + int(m.group(1)))
+    print(f"Using burn-in {burn_in_dt}")
+
 
     gain6m_lookback = args.heat_window
     gain5d_lookback = args.chill_window
@@ -283,7 +309,6 @@ if __name__ == "__main__":
         kwargs['rebalance_weekday'] = args.rebalance_day
     if args.rebalance == 'monthly':
         kwargs['rebalance_monthday'] = int(args.rebalance_day)
-    
 
     
     # Construct the symbols and assets necessary for the backtest
