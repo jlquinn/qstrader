@@ -69,12 +69,17 @@ class MomentumSignal(Signal):
         series = pd.Series(
             self.buffers.prices[MomentumSignal._asset_lookback_key(asset, lookback)]
         )
-        returns = series.pct_change().dropna().to_numpy()
-
-        if len(returns) < 1:
+        if len(series) < 1:
             return 0.0
-        else:
-            return (np.cumprod(1.0 + np.array(returns)) - 1.0)[-1]
+        cum = (series.iloc[-1] - series.iloc[0])/series.iloc[0]
+        return cum
+
+        #returns = series.pct_change().dropna().to_numpy()
+        #
+        #if len(returns) < 1:
+        #    return 0.0
+        #else:
+        #    return (np.cumprod(1.0 + np.array(returns)) - 1.0)[-1]
 
     def __call__(self, asset, lookback):
         """
